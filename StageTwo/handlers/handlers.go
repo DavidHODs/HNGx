@@ -21,10 +21,18 @@ type Person struct {
 	DeletedAt time.Time `json:"deleted_at" db:"deleted_at" sql:"type:date"`
 }
 
-// returned json response struct
+// returned json response struct for a single person
 type Response struct {
+	Msg       string    `json:"msg"`
+	Name      string    `json:"name"`
+	CreatedAt time.Time `json:"createdAt"`
+	UpdatedAt time.Time `json:"updatedAt"`
+	Status    int       `json:"status"`
+}
+
+// returned json response struct for a list of persons
+type ResponseRecord struct {
 	Msg    string   `json:"msg"`
-	Data   Person   `json:"data"`
 	Status int      `json:"status"`
 	Record []Person `json:"record"`
 }
@@ -42,12 +50,12 @@ func CreatePerson(res http.ResponseWriter, req *http.Request) {
 	}
 
 	// SQL query to insert a record; avouds SQL injection
-	query := `INSERT INTO person (fullName, isDeleted) 
-			  VALUES ($1, $2)
+	query := `INSERT INTO person (fullName) 
+			  VALUES ($1)
 			  RETURNING id`
 
 	// executes the query and returns the id of the created person
-	err = db.DB.QueryRow(query, person.FullName, false).Scan(&person.ID)
+	err = db.DB.QueryRow(query, person.FullName).Scan(&person.ID)
 	if err != nil {
 		http.Error(res, fmt.Sprintf("error: failed to insert record into database ==> %v", err), http.StatusInternalServerError)
 		return
@@ -55,10 +63,8 @@ func CreatePerson(res http.ResponseWriter, req *http.Request) {
 
 	// Return the created person as JSON
 	json.NewEncoder(res).Encode(Response{
-		Msg: "record succesfully created",
-		Data: Person{
-			FullName: person.FullName,
-		},
+		Msg:    "record succesfully created",
+		Name:   person.FullName,
 		Status: http.StatusCreated,
 	})
 }
@@ -75,7 +81,7 @@ func GetPerson(res http.ResponseWriter, req *http.Request) {
 	var person Person
 
 	// Execute the query and scan the result into the person variable
-	err := db.DB.QueryRow(query, ID).Scan(&person.ID, &person.FullName, &person.CreatedAt)
+	err := db.DB.QueryRow(query, ID).Scan(&person.ID, &person.FullName, &person.CreatedAt, &person.UpdatedAt)
 	if err != nil {
 		http.Error(res, fmt.Sprintf("error: person with ID %d not found", ID), http.StatusNotFound)
 		return
@@ -83,14 +89,11 @@ func GetPerson(res http.ResponseWriter, req *http.Request) {
 
 	// Returns the person's details as JSON
 	json.NewEncoder(res).Encode(Response{
-		Msg: "record succesfully retrieved",
-		Data: Person{
-			ID:        person.ID,
-			FullName:  person.FullName,
-			CreatedAt: person.CreatedAt,
-			UpdatedAt: person.UpdatedAt,
-		},
-		Status: http.StatusOK,
+		Msg:       "record succesfully retrieved",
+		Name:      person.FullName,
+		CreatedAt: person.CreatedAt,
+		UpdatedAt: person.UpdatedAt,
+		Status:    http.StatusOK,
 	})
 }
 
@@ -123,6 +126,12 @@ func GetAllPersons(res http.ResponseWriter, req *http.Request) {
 		persons = append(persons, person)
 	}
 
+	// Check if no records were found
+	if len(persons) == 0 {
+		http.Error(res, "no record found", http.StatusNotFound)
+		return
+	}
+
 	// Check for errors from iterating over rows
 	if err := rows.Err(); err != nil {
 		http.Error(res, fmt.Sprintf("error: row iteration error ==> %v", err), http.StatusInternalServerError)
@@ -130,9 +139,9 @@ func GetAllPersons(res http.ResponseWriter, req *http.Request) {
 	}
 
 	// Return the list of persons as JSON
-	json.NewEncoder(res).Encode(Response{
+	json.NewEncoder(res).Encode(ResponseRecord{
 		Msg:    "records successfully retrieved",
-		Record: persons,
 		Status: http.StatusOK,
+		Record: persons,
 	})
 }
