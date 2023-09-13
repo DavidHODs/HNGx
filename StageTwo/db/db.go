@@ -1,8 +1,10 @@
 package db
 
 import (
+	"database/sql"
 	"errors"
 	"fmt"
+	"log"
 	"os"
 
 	"github.com/joho/godotenv"
@@ -21,4 +23,29 @@ func LoadEnv(key string) (string, error) {
 	}
 
 	return keyValue, nil
+}
+
+var DB *sql.DB
+
+// InitDB initializes the database connection.
+func InitDB() {
+	connStr, err := LoadEnv("DATABASE_URL")
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	DB, err = sql.Open("postgres", connStr)
+	if err != nil {
+		log.Fatalf("error: could not connect to database ==> %v", err)
+	}
+
+	// defer DB.Close()
+	// leaving database connection open instead of opening and closing a new connection for every database interraction
+
+	err = DB.Ping()
+	if err != nil {
+		log.Fatalf("error: could not connect to database ==>  %v", err)
+	} else {
+		fmt.Println("database connection successful")
+	}
 }
