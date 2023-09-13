@@ -31,6 +31,15 @@ type Response struct {
 	Status    int       `json:"status"`
 }
 
+// returned json response struct for a single person, does not return ID
+type ResponseNoID struct {
+	Msg       string    `json:"msg"`
+	Name      string    `json:"name"`
+	CreatedAt time.Time `json:"createdAt"`
+	UpdatedAt time.Time `json:"updatedAt"`
+	Status    int       `json:"status"`
+}
+
 // returned json response struct for a list of persons
 type ResponseRecord struct {
 	Msg    string   `json:"msg"`
@@ -76,8 +85,8 @@ func CreatePerson(res http.ResponseWriter, req *http.Request) {
 func GetPerson(res http.ResponseWriter, req *http.Request) {
 	res.Header().Set("Content-Type", "application/json")
 
-	// Extracts the person's ID from the URL path or request parameters before converting to integer
-	personID := mux.Vars(req)["id"]
+	// Extracts the person's ID from the URL path before converting to integer
+	personID := mux.Vars(req)["user_id"]
 	ID, _ := strconv.Atoi(personID)
 
 	// SQL query to retrieve a person's details by their ID
@@ -96,6 +105,37 @@ func GetPerson(res http.ResponseWriter, req *http.Request) {
 	json.NewEncoder(res).Encode(Response{
 		Msg:       "record succesfully retrieved",
 		Name:      person.FullName,
+		ID:        person.ID,
+		CreatedAt: person.CreatedAt,
+		UpdatedAt: person.UpdatedAt,
+		Status:    http.StatusOK,
+	})
+}
+
+// GetPerson retrieves the details of a person by their name
+func GetPersonByName(res http.ResponseWriter, req *http.Request) {
+	res.Header().Set("Content-Type", "application/json")
+
+	// Extracts the person's name from the URL path
+	nameID := mux.Vars(req)["user_name"]
+
+	// SQL query to retrieve a person's details by their name
+	query := `SELECT id, fullName, createdAt, updatedAt FROM person WHERE fullName = $1 and isDeleted = false`
+
+	var person Person
+
+	// Execute the query and scan the result into the person variable
+	err := db.DB.QueryRow(query, nameID).Scan(&person.ID, &person.FullName, &person.CreatedAt, &person.UpdatedAt)
+	if err != nil {
+		http.Error(res, fmt.Sprintf("error: person with name %s does not exist", nameID), http.StatusNotFound)
+		return
+	}
+
+	// Returns the person's details as JSON
+	json.NewEncoder(res).Encode(Response{
+		Msg:       "record succesfully retrieved",
+		Name:      person.FullName,
+		ID:        person.ID,
 		CreatedAt: person.CreatedAt,
 		UpdatedAt: person.UpdatedAt,
 		Status:    http.StatusOK,
@@ -155,8 +195,8 @@ func GetAllPersons(res http.ResponseWriter, req *http.Request) {
 func UpdatePerson(res http.ResponseWriter, req *http.Request) {
 	res.Header().Set("Content-Type", "application/json")
 
-	// Extracts the person's ID from the URL path or request parameters before converting to integer
-	personID := mux.Vars(req)["id"]
+	// Extracts the person's ID from the URL path before converting to integer
+	personID := mux.Vars(req)["user_id"]
 	ID, _ := strconv.Atoi(personID)
 
 	// Creates a struct to hold the updated person data
@@ -193,13 +233,53 @@ func UpdatePerson(res http.ResponseWriter, req *http.Request) {
 	})
 }
 
+// UpdatePerson updates a person's record in the database
+func UpdatePersonByName(res http.ResponseWriter, req *http.Request) {
+	res.Header().Set("Content-Type", "application/json")
+
+	// Extracts the person's name from the URL path
+	nameID := mux.Vars(req)["user_name"]
+
+	// Creates a struct to hold the updated person data
+	var updatedPerson Person
+	if err := json.NewDecoder(req.Body).Decode(&updatedPerson); err != nil {
+		http.Error(res, "error: bad request", http.StatusBadRequest)
+		return
+	}
+
+	// SQL query to update a person's record
+	query := `UPDATE person SET fullName = $2, updatedAt = $3 WHERE fullName = $1 AND isDeleted = false`
+
+	// Execute the query to update the person's information
+	result, err := db.DB.Exec(query, nameID, updatedPerson.FullName, time.Now())
+	if err != nil {
+		http.Error(res, fmt.Sprintf("error: failed to update record ==> %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	// checks if record to be updated exists
+	rowsAffected, _ := result.RowsAffected()
+	if rowsAffected == 0 {
+		http.Error(res, fmt.Sprintf("error: person with name %s does not exist", nameID), http.StatusBadRequest)
+		return
+	}
+
+	// Return a success response
+	json.NewEncoder(res).Encode(ResponseNoID{
+		Msg:       "record successfully updated",
+		Name:      updatedPerson.FullName,
+		UpdatedAt: time.Now(),
+		Status:    http.StatusOK,
+	})
+}
+
 // SoftDeletePerson deletes a person's record from the database
 // ==> keeps the record but makes it unavailable by setting isDeleted flag to true
 func SoftDeletePerson(res http.ResponseWriter, req *http.Request) {
 	res.Header().Set("Content-Type", "application/json")
 
-	// Extracts the person's ID from the URL path or request parameters before converting to integer
-	personID := mux.Vars(req)["id"]
+	// Extracts the person's ID from the URL path before converting to integer
+	personID := mux.Vars(req)["user_id"]
 	ID, _ := strconv.Atoi(personID)
 
 	// SQL query to set isDeleted flag to true
@@ -226,12 +306,44 @@ func SoftDeletePerson(res http.ResponseWriter, req *http.Request) {
 	})
 }
 
+// SoftDeletePersonByName deletes a person's record from the database
+// ==> keeps the record but makes it unavailable by setting isDeleted flag to true
+func SoftDeletePersonByName(res http.ResponseWriter, req *http.Request) {
+	res.Header().Set("Content-Type", "application/json")
+
+	// Extracts the person's ID from the URL path
+	nameID := mux.Vars(req)["user_name"]
+
+	// SQL query to set isDeleted flag to true
+	query := `UPDATE person SET isDeleted = $2, deletedAt = $3 WHERE fullName = $1 and isDeleted = false`
+
+	// Execute the query to delete the person's record
+	result, err := db.DB.Exec(query, nameID, true, time.Now())
+	if err != nil {
+		http.Error(res, fmt.Sprintf("error: failed to delete record ==> %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	// checks if record to be deleted exists
+	rowsAffected, _ := result.RowsAffected()
+	if rowsAffected == 0 {
+		http.Error(res, fmt.Sprintf("error: person with name %s does not exist", nameID), http.StatusBadRequest)
+		return
+	}
+
+	// Return a success response
+	json.NewEncoder(res).Encode(Response{
+		Msg:    "record successfully deleted",
+		Status: http.StatusOK,
+	})
+}
+
 // HardDeletePerson deletes a person's record from the database
 func HardDeletePerson(res http.ResponseWriter, req *http.Request) {
 	res.Header().Set("Content-Type", "application/json")
 
-	// Extracts the person's ID from the URL path or request parameters before converting to integer
-	personID := mux.Vars(req)["id"]
+	// Extracts the person's ID from the URL path  before converting to integer
+	personID := mux.Vars(req)["user_id"]
 	ID, _ := strconv.Atoi(personID)
 
 	// SQL query to delete a person's record
@@ -248,6 +360,37 @@ func HardDeletePerson(res http.ResponseWriter, req *http.Request) {
 	rowsAffected, _ := result.RowsAffected()
 	if rowsAffected == 0 {
 		http.Error(res, fmt.Sprintf("error: person with id %s does not exist", personID), http.StatusBadRequest)
+		return
+	}
+
+	// Return a success response
+	json.NewEncoder(res).Encode(Response{
+		Msg:    "record successfully deleted",
+		Status: http.StatusOK,
+	})
+}
+
+// HardDeletePersonByName deletes a person's record from the database
+func HardDeletePersonByName(res http.ResponseWriter, req *http.Request) {
+	res.Header().Set("Content-Type", "application/json")
+
+	// Extracts the person's ID from the URL path before converting to integer
+	nameID := mux.Vars(req)["user_name"]
+
+	// SQL query to delete a person's record
+	query := "DELETE FROM person WHERE fullName = $1"
+
+	// Execute the query to delete the person's record
+	result, err := db.DB.Exec(query, nameID)
+	if err != nil {
+		http.Error(res, fmt.Sprintf("error: failed to delete record ==> %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	// checks if record to be deleted exists
+	rowsAffected, _ := result.RowsAffected()
+	if rowsAffected == 0 {
+		http.Error(res, fmt.Sprintf("error: person with id %s does not exist", nameID), http.StatusBadRequest)
 		return
 	}
 

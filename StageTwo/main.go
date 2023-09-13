@@ -23,12 +23,28 @@ func main() {
 	port, _ := strconv.Atoi(portStr)
 
 	router := mux.NewRouter()
+
+	// creates person's record
 	router.HandleFunc("/api", handlers.CreatePerson).Methods("POST")
-	router.HandleFunc("/api/{id:[0-9]+}", handlers.GetPerson).Methods("GET")
+
+	// retrieves a person's record
+	router.HandleFunc("/api/{user_id:[0-9]+}", handlers.GetPerson).Methods("GET")
+	router.HandleFunc("/api/{user_name}", handlers.GetPersonByName).Methods("GET")
+
+	// retrieves all person record
 	router.HandleFunc("/api", handlers.GetAllPersons).Methods("GET")
-	router.HandleFunc("/api/{id:[0-9]+}", handlers.UpdatePerson).Methods("PATCH")
-	router.HandleFunc("/api/soft-delete/{id:[0-9]+}", handlers.SoftDeletePerson).Methods("PATCH")
-	router.HandleFunc("/api/hard-delete/{id:[0-9]+}", handlers.HardDeletePerson).Methods("DELETE")
+
+	// updates a person 's record
+	router.HandleFunc("/api/{user_id:[0-9]+}", handlers.UpdatePerson).Methods("PATCH")
+	router.HandleFunc("/api/{user_name}", handlers.UpdatePersonByName).Methods("PATCH")
+
+	// soft deleletes a person ==> isDelete flag is set to true but record still exists
+	router.HandleFunc("/api/soft_delete/{user_id:[0-9]+}", handlers.SoftDeletePerson).Methods("PATCH")
+	router.HandleFunc("/api/soft_delete/{user_name}", handlers.SoftDeletePersonByName).Methods("PATCH")
+
+	// wipes of a person's record
+	router.HandleFunc("/api/{user_id:[0-9]+}", handlers.HardDeletePerson).Methods("DELETE")
+	router.HandleFunc("/api/{user_name}", handlers.HardDeletePersonByName).Methods("DELETE")
 
 	srv := &http.Server{
 		Handler:      router,
