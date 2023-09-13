@@ -4,9 +4,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/DavidHODs/HNGx/StageTwo/db"
+	"github.com/gorilla/mux"
 )
 
 // Person data structure with assigned struct tags
@@ -38,8 +40,6 @@ func CreatePerson(res http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	fmt.Println(person.FullName)
-
 	// SQL query to insert a record; avouds SQL injection
 	query := `INSERT INTO person (fullName, isDeleted) 
 			  VALUES ($1, $2)
@@ -57,5 +57,31 @@ func CreatePerson(res http.ResponseWriter, req *http.Request) {
 		Msg:    "record succesfully created",
 		Data:   person.FullName,
 		Status: http.StatusCreated,
+	})
+}
+
+// GetPerson retrieves the details of a person by their ID
+func GetPerson(res http.ResponseWriter, req *http.Request) {
+	res.Header().Set("Content-Type", "application/json")
+	personID := mux.Vars(req)["id"]
+	ID, _ := strconv.Atoi(personID)
+
+	// SQL query to retrieve a person's details by their ID
+	query := `SELECT fullName FROM person WHERE id = $1`
+
+	var person Person
+
+	// Execute the query and scan the result into the person variable
+	err := db.DB.QueryRow(query, ID).Scan(&person.FullName)
+	if err != nil {
+		http.Error(res, fmt.Sprintf("error: person with ID %d not found", ID), http.StatusNotFound)
+		return
+	}
+
+	// Returns the person's details as JSON
+	json.NewEncoder(res).Encode(Response{
+		Msg:    "record succesfully retrieved",
+		Data:   person.FullName,
+		Status: http.StatusOK,
 	})
 }
