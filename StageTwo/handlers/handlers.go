@@ -23,9 +23,10 @@ type Person struct {
 
 // returned json response struct
 type Response struct {
-	Msg    string `json:"msg"`
-	Data   string `json:"data"`
-	Status int    `json:"status"`
+	Msg    string   `json:"msg"`
+	Data   Person   `json:"data"`
+	Status int      `json:"status"`
+	Record []Person `json:"record"`
 }
 
 // CreatePerson creates a new person and add them to the database
@@ -54,8 +55,10 @@ func CreatePerson(res http.ResponseWriter, req *http.Request) {
 
 	// Return the created person as JSON
 	json.NewEncoder(res).Encode(Response{
-		Msg:    "record succesfully created",
-		Data:   person.FullName,
+		Msg: "record succesfully created",
+		Data: Person{
+			FullName: person.FullName,
+		},
 		Status: http.StatusCreated,
 	})
 }
@@ -67,12 +70,12 @@ func GetPerson(res http.ResponseWriter, req *http.Request) {
 	ID, _ := strconv.Atoi(personID)
 
 	// SQL query to retrieve a person's details by their ID
-	query := `SELECT fullName FROM person WHERE id = $1`
+	query := `SELECT id, fullName, createdAt, updatedAt FROM person WHERE id = $1 and isDeleted = false`
 
 	var person Person
 
 	// Execute the query and scan the result into the person variable
-	err := db.DB.QueryRow(query, ID).Scan(&person.FullName)
+	err := db.DB.QueryRow(query, ID).Scan(&person.ID, &person.FullName, &person.CreatedAt)
 	if err != nil {
 		http.Error(res, fmt.Sprintf("error: person with ID %d not found", ID), http.StatusNotFound)
 		return
@@ -80,8 +83,56 @@ func GetPerson(res http.ResponseWriter, req *http.Request) {
 
 	// Returns the person's details as JSON
 	json.NewEncoder(res).Encode(Response{
-		Msg:    "record succesfully retrieved",
-		Data:   person.FullName,
+		Msg: "record succesfully retrieved",
+		Data: Person{
+			ID:        person.ID,
+			FullName:  person.FullName,
+			CreatedAt: person.CreatedAt,
+			UpdatedAt: person.UpdatedAt,
+		},
+		Status: http.StatusOK,
+	})
+}
+
+// GetAllPersons retrieves all person records from the database
+func GetAllPersons(res http.ResponseWriter, req *http.Request) {
+	res.Header().Set("Content-Type", "application/json")
+
+	// SQL query to retrieve all person records
+	query := `SELECT id, fullName, createdAt, updatedAt FROM person WHERE isDeleted = false`
+
+	// Execute the query to fetch all records
+	rows, err := db.DB.Query(query)
+	if err != nil {
+		http.Error(res, fmt.Sprintf("error: failed to fetch records ==> %v", err), http.StatusInternalServerError)
+		return
+	}
+	defer rows.Close()
+
+	// Create a slice to hold the results
+	var persons []Person
+
+	// Iterate through the rows and scan each record into a Person struct
+	for rows.Next() {
+		var person Person
+		err := rows.Scan(&person.ID, &person.FullName, &person.CreatedAt, &person.UpdatedAt)
+		if err != nil {
+			http.Error(res, fmt.Sprintf("error: failed to scan record ==> %v", err), http.StatusInternalServerError)
+			return
+		}
+		persons = append(persons, person)
+	}
+
+	// Check for errors from iterating over rows
+	if err := rows.Err(); err != nil {
+		http.Error(res, fmt.Sprintf("error: row iteration error ==> %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	// Return the list of persons as JSON
+	json.NewEncoder(res).Encode(Response{
+		Msg:    "records successfully retrieved",
+		Record: persons,
 		Status: http.StatusOK,
 	})
 }

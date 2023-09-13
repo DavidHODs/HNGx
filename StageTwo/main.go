@@ -25,6 +25,7 @@ func main() {
 	router := mux.NewRouter()
 	router.HandleFunc("/api", handlers.CreatePerson).Methods("POST")
 	router.HandleFunc("/api/{id:[0-9]+}", handlers.GetPerson).Methods("GET")
+	router.HandleFunc("/api", handlers.GetAllPersons).Methods("GET")
 
 	srv := &http.Server{
 		Handler:      router,
