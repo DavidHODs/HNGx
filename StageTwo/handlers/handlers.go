@@ -167,9 +167,16 @@ func UpdatePerson(res http.ResponseWriter, req *http.Request) {
 	query := `UPDATE person SET fullName = $2, createdAt = $3 WHERE id = $1 and isDeleted = false`
 
 	// Execute the query to update the person's information
-	_, err := db.DB.Exec(query, ID, updatedPerson.FullName, time.Now())
+	result, err := db.DB.Exec(query, ID, updatedPerson.FullName, time.Now())
 	if err != nil {
 		http.Error(res, fmt.Sprintf("error: failed to update record ==> %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	// checks if record to be updated exists
+	rowsAffected, _ := result.RowsAffected()
+	if rowsAffected == 0 {
+		http.Error(res, fmt.Sprintf("error: person with id %s does not exist", personID), http.StatusBadRequest)
 		return
 	}
 

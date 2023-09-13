@@ -26,6 +26,7 @@ func main() {
 	router.HandleFunc("/api", handlers.CreatePerson).Methods("POST")
 	router.HandleFunc("/api/{id:[0-9]+}", handlers.GetPerson).Methods("GET")
 	router.HandleFunc("/api", handlers.GetAllPersons).Methods("GET")
+	router.HandleFunc("/api/{id:[0-9]+}", handlers.UpdatePerson).Methods("PUT")
 
 	srv := &http.Server{
 		Handler:      router,
