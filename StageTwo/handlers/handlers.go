@@ -13,7 +13,7 @@ import (
 
 // Person data structure with assigned struct tags
 type Person struct {
-	ID        int64     `json:"id" db:"id"`
+	ID        int       `json:"id" db:"id"`
 	FullName  string    `json:"full_name"  db:"full_name"`
 	IsDeleted bool      `json:"is_deleted" db:"is_deleted"`
 	CreatedAt time.Time `json:"created_at" db:"created_at" sql:"type:date"`
@@ -24,6 +24,7 @@ type Person struct {
 // returned json response struct for a single person
 type Response struct {
 	Msg       string    `json:"msg"`
+	ID        int       `json:"id"`
 	Name      string    `json:"name"`
 	CreatedAt time.Time `json:"createdAt"`
 	UpdatedAt time.Time `json:"updatedAt"`
@@ -41,6 +42,7 @@ type ResponseRecord struct {
 func CreatePerson(res http.ResponseWriter, req *http.Request) {
 	res.Header().Set("Content-Type", "application/json")
 	var person Person
+	var returnedID int
 
 	// decodes json data from request body, parses it and stores it in person variable
 	err := json.NewDecoder(req.Body).Decode(&person)
@@ -49,13 +51,13 @@ func CreatePerson(res http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	// SQL query to insert a record; avouds SQL injection
+	// SQL query to insert a record
 	query := `INSERT INTO person (fullName) 
 			  VALUES ($1)
 			  RETURNING id`
 
 	// executes the query and returns the id of the created person
-	err = db.DB.QueryRow(query, person.FullName).Scan(&person.ID)
+	err = db.DB.QueryRow(query, person.FullName).Scan(&returnedID)
 	if err != nil {
 		http.Error(res, fmt.Sprintf("error: failed to insert record into database ==> %v", err), http.StatusInternalServerError)
 		return
@@ -65,6 +67,7 @@ func CreatePerson(res http.ResponseWriter, req *http.Request) {
 	json.NewEncoder(res).Encode(Response{
 		Msg:    "record succesfully created",
 		Name:   person.FullName,
+		ID:     returnedID,
 		Status: http.StatusCreated,
 	})
 }
@@ -85,7 +88,7 @@ func GetPerson(res http.ResponseWriter, req *http.Request) {
 	// Execute the query and scan the result into the person variable
 	err := db.DB.QueryRow(query, ID).Scan(&person.ID, &person.FullName, &person.CreatedAt, &person.UpdatedAt)
 	if err != nil {
-		http.Error(res, fmt.Sprintf("error: person with ID %d not found", ID), http.StatusNotFound)
+		http.Error(res, fmt.Sprintf("error: person with ID %d does not exist", ID), http.StatusNotFound)
 		return
 	}
 
@@ -164,7 +167,7 @@ func UpdatePerson(res http.ResponseWriter, req *http.Request) {
 	}
 
 	// SQL query to update a person's record
-	query := `UPDATE person SET fullName = $2, createdAt = $3 WHERE id = $1 and isDeleted = false`
+	query := `UPDATE person SET fullName = $2, updatedAt = $3 WHERE id = $1 AND isDeleted = false`
 
 	// Execute the query to update the person's information
 	result, err := db.DB.Exec(query, ID, updatedPerson.FullName, time.Now())
@@ -184,6 +187,7 @@ func UpdatePerson(res http.ResponseWriter, req *http.Request) {
 	json.NewEncoder(res).Encode(Response{
 		Msg:       "record successfully updated",
 		Name:      updatedPerson.FullName,
+		ID:        ID,
 		UpdatedAt: time.Now(),
 		Status:    http.StatusOK,
 	})
@@ -199,10 +203,10 @@ func SoftDeletePerson(res http.ResponseWriter, req *http.Request) {
 	ID, _ := strconv.Atoi(personID)
 
 	// SQL query to set isDeleted flag to true
-	query := "UPDATE person SET isDeleted = $2 WHERE id = $1 and isDeleted = false`"
+	query := `UPDATE person SET isDeleted = $2, deletedAt = $3 WHERE id = $1 and isDeleted = false`
 
 	// Execute the query to delete the person's record
-	result, err := db.DB.Exec(query, ID, true)
+	result, err := db.DB.Exec(query, ID, true, time.Now())
 	if err != nil {
 		http.Error(res, fmt.Sprintf("error: failed to delete record ==> %v", err), http.StatusInternalServerError)
 		return
