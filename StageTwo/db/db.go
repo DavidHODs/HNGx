@@ -12,7 +12,7 @@ import (
 
 // LoadEnv returns the value of the key as specified in the env file
 func LoadEnv(key string) (string, error) {
-	err := godotenv.Load("stageTwo.env")
+	err := godotenv.Load(".env")
 	if err != nil {
 		return "", errors.New("error: could not load .env file")
 	}
