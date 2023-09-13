@@ -27,7 +27,7 @@ func main() {
 	router.HandleFunc("/api/{id:[0-9]+}", handlers.GetPerson).Methods("GET")
 	router.HandleFunc("/api", handlers.GetAllPersons).Methods("GET")
 	router.HandleFunc("/api/{id:[0-9]+}", handlers.UpdatePerson).Methods("PUT")
-	router.HandleFunc("/api/{id:[0-9]+}", handlers.SoftDeletePerson).Methods("PUT")
+	router.HandleFunc("/api/{id:[0-9]+}", handlers.SoftDeletePerson).Methods("PATCH")
 	router.HandleFunc("/api/{id:[0-9]+}", handlers.HardDeletePerson).Methods("DELETE")
 
 	srv := &http.Server{
