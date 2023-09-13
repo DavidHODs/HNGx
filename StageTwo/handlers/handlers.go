@@ -221,3 +221,35 @@ func SoftDeletePerson(res http.ResponseWriter, req *http.Request) {
 		Status: http.StatusOK,
 	})
 }
+
+// HardDeletePerson deletes a person's record from the database
+func HardDeletePerson(res http.ResponseWriter, req *http.Request) {
+	res.Header().Set("Content-Type", "application/json")
+
+	// Extracts the person's ID from the URL path or request parameters before converting to integer
+	personID := mux.Vars(req)["id"]
+	ID, _ := strconv.Atoi(personID)
+
+	// SQL query to delete a person's record
+	query := "DELETE FROM person WHERE id = $1"
+
+	// Execute the query to delete the person's record
+	result, err := db.DB.Exec(query, ID)
+	if err != nil {
+		http.Error(res, fmt.Sprintf("error: failed to delete record ==> %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	// checks if record to be deleted exists
+	rowsAffected, _ := result.RowsAffected()
+	if rowsAffected == 0 {
+		http.Error(res, fmt.Sprintf("error: person with id %s does not exist", personID), http.StatusBadRequest)
+		return
+	}
+
+	// Return a success response
+	json.NewEncoder(res).Encode(Response{
+		Msg:    "record successfully deleted",
+		Status: http.StatusOK,
+	})
+}
