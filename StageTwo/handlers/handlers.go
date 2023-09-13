@@ -72,6 +72,8 @@ func CreatePerson(res http.ResponseWriter, req *http.Request) {
 // GetPerson retrieves the details of a person by their ID
 func GetPerson(res http.ResponseWriter, req *http.Request) {
 	res.Header().Set("Content-Type", "application/json")
+
+	// Extracts the person's ID from the URL path or request parameters before converting to integer
 	personID := mux.Vars(req)["id"]
 	ID, _ := strconv.Atoi(personID)
 
@@ -143,5 +145,39 @@ func GetAllPersons(res http.ResponseWriter, req *http.Request) {
 		Msg:    "records successfully retrieved",
 		Status: http.StatusOK,
 		Record: persons,
+	})
+}
+
+// UpdatePerson updates a person's record in the database
+func UpdatePerson(res http.ResponseWriter, req *http.Request) {
+	res.Header().Set("Content-Type", "application/json")
+
+	// Extracts the person's ID from the URL path or request parameters before converting to integer
+	personID := mux.Vars(req)["id"]
+	ID, _ := strconv.Atoi(personID)
+
+	// Creates a struct to hold the updated person data
+	var updatedPerson Person
+	if err := json.NewDecoder(req.Body).Decode(&updatedPerson); err != nil {
+		http.Error(res, "error: bad request", http.StatusBadRequest)
+		return
+	}
+
+	// SQL query to update a person's record
+	query := `UPDATE person SET fullName = $2, createdAt = $3 WHERE id = $1 and isDeleted = false`
+
+	// Execute the query to update the person's information
+	_, err := db.DB.Exec(query, ID, updatedPerson.FullName, time.Now())
+	if err != nil {
+		http.Error(res, fmt.Sprintf("error: failed to update record ==> %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	// Return a success response
+	json.NewEncoder(res).Encode(Response{
+		Msg:       "record successfully updated",
+		Name:      updatedPerson.FullName,
+		UpdatedAt: time.Now(),
+		Status:    http.StatusOK,
 	})
 }
