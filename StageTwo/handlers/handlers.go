@@ -188,3 +188,36 @@ func UpdatePerson(res http.ResponseWriter, req *http.Request) {
 		Status:    http.StatusOK,
 	})
 }
+
+// SoftDeletePerson deletes a person's record from the database
+// ==> keeps the record but makes it unavailable by setting isDeleted flag to true
+func SoftDeletePerson(res http.ResponseWriter, req *http.Request) {
+	res.Header().Set("Content-Type", "application/json")
+
+	// Extracts the person's ID from the URL path or request parameters before converting to integer
+	personID := mux.Vars(req)["id"]
+	ID, _ := strconv.Atoi(personID)
+
+	// SQL query to set isDeleted flag to true
+	query := "UPDATE person SET isDeleted = $2 WHERE id = $1 and isDeleted = false`"
+
+	// Execute the query to delete the person's record
+	result, err := db.DB.Exec(query, ID, true)
+	if err != nil {
+		http.Error(res, fmt.Sprintf("error: failed to delete record ==> %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	// checks if record to be deleted exists
+	rowsAffected, _ := result.RowsAffected()
+	if rowsAffected == 0 {
+		http.Error(res, fmt.Sprintf("error: person with id %s does not exist", personID), http.StatusBadRequest)
+		return
+	}
+
+	// Return a success response
+	json.NewEncoder(res).Encode(Response{
+		Msg:    "record successfully deleted",
+		Status: http.StatusOK,
+	})
+}
