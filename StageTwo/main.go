@@ -46,9 +46,12 @@ func main() {
 	router.HandleFunc("/api/{user_id:[0-9]+}", handlers.HardDeletePerson).Methods("DELETE")
 	router.HandleFunc("/api/{user_name}", handlers.HardDeletePersonByName).Methods("DELETE")
 
+	// renders generated postman (with newmann) test report and documentation
+	router.PathPrefix("/api/static/").Handler(http.StripPrefix("/api/static/", http.FileServer(http.Dir("."))))
+
 	srv := &http.Server{
 		Handler:      router,
-		Addr:         fmt.Sprintf("0.0.0.0:%d", port),
+		Addr:         fmt.Sprintf("127.0.0.1:%d", port),
 		WriteTimeout: 10 * time.Second,
 		ReadTimeout:  10 * time.Second,
 	}
