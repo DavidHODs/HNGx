@@ -56,7 +56,7 @@ func CreatePerson(res http.ResponseWriter, req *http.Request) {
 	// decodes json data from request body, parses it and stores it in person variable
 	err := json.NewDecoder(req.Body).Decode(&person)
 	if err != nil {
-		http.Error(res, "error: bad request", http.StatusBadRequest)
+		http.Error(res, "error: bad request ==> full_name should be of type string", http.StatusBadRequest)
 		return
 	}
 
@@ -201,8 +201,10 @@ func UpdatePerson(res http.ResponseWriter, req *http.Request) {
 
 	// Creates a struct to hold the updated person data
 	var updatedPerson Person
-	if err := json.NewDecoder(req.Body).Decode(&updatedPerson); err != nil {
-		http.Error(res, "error: bad request", http.StatusBadRequest)
+
+	err := json.NewDecoder(req.Body).Decode(&updatedPerson)
+	if err != nil {
+		http.Error(res, "error: bad request ==> full_name should be of type string", http.StatusBadRequest)
 		return
 	}
 
@@ -242,11 +244,12 @@ func UpdatePersonByName(res http.ResponseWriter, req *http.Request) {
 
 	// Creates a struct to hold the updated person data
 	var updatedPerson Person
-	if err := json.NewDecoder(req.Body).Decode(&updatedPerson); err != nil {
-		http.Error(res, "error: bad request", http.StatusBadRequest)
+
+	err := json.NewDecoder(req.Body).Decode(&updatedPerson)
+	if err != nil {
+		http.Error(res, "error: bad request ==> full_name should be of type string", http.StatusBadRequest)
 		return
 	}
-
 	// SQL query to update a person's record
 	query := `UPDATE person SET fullName = $2, updatedAt = $3 WHERE fullName = $1 AND isDeleted = false`
 
