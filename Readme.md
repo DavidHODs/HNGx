@@ -8,6 +8,6 @@ I'm participating in this year's edition (x) to network and build a portfolio of
 
 ## Projects/Tasks
 
-![Task One](https://github.com/DavidHODs/HNG-X) ==> is a deployed GET endpoint that returns some info based on the query params. My tech stack for this is Haskell and AWS.
+[Task One](https://github.com/DavidHODs/HNG-X) ==> is a deployed GET endpoint that returns some info based on the query params. My tech stack for this is Haskell and AWS.
 
-![Task Two](https://github.com/DavidHODs/HNGx/tree/main/StageTwo) ==> is a deployed CRUD API accompanied with end to end API testing. Tech stack is Golang, Postgres, AWS, Nginx, Postman.
+[Task Two](https://github.com/DavidHODs/HNGx/tree/main/StageTwo) ==> is a deployed CRUD API accompanied with end to end API testing. Tech stack is Golang, Postgres, AWS, Nginx, Postman.
